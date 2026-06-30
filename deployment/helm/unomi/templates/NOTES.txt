@@ -1,0 +1,10 @@
+Unomi Modern has been installed.
+
+Service:
+  {{ include "unomi.fullname" . }}:{{ .Values.service.port }}
+
+Port forward locally:
+  kubectl port-forward svc/{{ include "unomi.fullname" . }} 8080:{{ .Values.service.port }}
+
+Swagger UI:
+  http://localhost:8080/swagger-ui/index.html

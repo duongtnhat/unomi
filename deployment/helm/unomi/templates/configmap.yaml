@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "unomi.fullname" . }}
+  labels:
+    {{- include "unomi.labels" . | nindent 4 }}
+data:
+  SERVER_PORT: {{ .Values.env.serverPort | quote }}
+  SPRING_DATASOURCE_URL: {{ .Values.env.datasource.url | quote }}
+  SPRING_ELASTICSEARCH_URIS: {{ .Values.env.elasticsearch.uris | quote }}
+  SPRING_DATA_REDIS_HOST: {{ .Values.env.redis.host | quote }}
+  SPRING_DATA_REDIS_PORT: {{ .Values.env.redis.port | quote }}
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: {{ .Values.env.kafka.bootstrapServers | quote }}
+  UNOMI_OUTBOX_PUBLISHER_ENABLED: {{ .Values.env.outbox.publisherEnabled | quote }}
+  UNOMI_OUTBOX_PUBLISHER_FIXED_DELAY_MS: {{ .Values.env.outbox.fixedDelayMs | quote }}
+  UNOMI_WRITE_ES_CONSUMER_ENABLED: {{ .Values.env.consumers.writeEsEnabled | quote }}
+  UNOMI_MERGE_CONSUMER_ENABLED: {{ .Values.env.consumers.mergeEnabled | quote }}
+  UNOMI_SEGMENT_CONSUMER_ENABLED: {{ .Values.env.consumers.segmentEnabled | quote }}
+  UNOMI_RULE_CONSUMER_ENABLED: {{ .Values.env.consumers.ruleEnabled | quote }}
+  UNOMI_ACTION_CONSUMER_ENABLED: {{ .Values.env.consumers.actionEnabled | quote }}
