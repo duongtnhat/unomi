@@ -21,10 +21,12 @@ public record UpsertCustomerInfoResponse(
 
     @Schema(description = "Successful user write summary.")
     public record Successful(
-        @Schema(description = "Number of users successfully processed.", example = "1")
+        @Schema(description = "Number of user commands accepted for asynchronous processing.", example = "1")
         int count,
-        @Schema(description = "Profile IDs written by this request.")
-        List<String> profileIds
+        @Schema(description = "Profile IDs known at request time. Users without insiderId receive their final profile ID in the async worker.")
+        List<String> profileIds,
+        @Schema(description = "Kafka command message IDs accepted by this request.")
+        List<String> messageIds
     ) {
     }
 

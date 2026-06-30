@@ -35,17 +35,18 @@ public class UpsertCustomerInfoController {
             Inserts or updates up to 1000 users in one request.
 
             Each user must include either insiderId or identifiers, and must include at least one attributes object or one events array.
-            Attributes update the customer profile in Elasticsearch. Events are written to the customer-events index.
+            The API validates and publishes accepted users to Kafka. A separate worker consumes the command, writes Elasticsearch,
+            runs profile merging, stores events, and qualifies customer segments asynchronously.
             """
     )
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Request accepted and processed with per-user success/failure details"),
+        @ApiResponse(responseCode = "202", description = "Request accepted and published to Kafka with per-user success/failure details"),
         @ApiResponse(responseCode = "400", description = "Invalid batch payload",
             content = @Content(schema = @Schema(implementation = ApiError.class))),
         @ApiResponse(responseCode = "401", description = "Missing or invalid API key",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     })
     public ResponseEntity<UpsertCustomerInfoResponse> upsert(@RequestBody UpsertCustomerInfoRequest request) {
-        return ResponseEntity.ok(service.upsert(request));
+        return ResponseEntity.accepted().body(service.upsert(request));
     }
 }

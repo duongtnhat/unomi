@@ -7,6 +7,7 @@ This first slice keeps the scope intentionally narrow:
 - Customer profiles live in Elasticsearch.
 - Customer events live in Elasticsearch.
 - Definitions and configuration live in PostgreSQL as JSONB.
+- Customer upsert writes, profile merging, event writes, and segment qualification run asynchronously through Kafka.
 - Personalization, campaigns, scoring, and complex rule execution are out of scope for now.
 
 ## API conventions
@@ -16,6 +17,14 @@ All request and response fields use camelCase. This includes external-ingestion-
 All `/api/**` endpoints require an API key in the `X-API-Key` header. The local development seed key is `dev-unomi-api-key`.
 
 Customer attributes and event attributes must be defined in PostgreSQL before they are accepted during profile or event writes. Supported value types are `TEXT`, `NUMBER`, `DATETIME`, `LIST_OF_TEXT`, and `LIST_OF_NUMBER`. Unknown keys and values with the wrong type are ignored during upsert.
+
+The batch customer upsert API is asynchronous. It validates each user item and publishes accepted commands to Kafka topic `customer-upsert-commands`. Processing then moves through separate Kafka consumers:
+
+- `unomi-write-es-workers` consumes `customer-upsert-commands`, writes profile/event data to Elasticsearch, then publishes `profile-merge-commands` when `skipHook` is `false`.
+- `unomi-merge-workers` consumes `profile-merge-commands`, runs profile merge, then publishes `segment-qualification-commands`.
+- `unomi-segment-workers` consumes `segment-qualification-commands` and updates `segmentIds`/`segmentKeys`.
+
+For local development, one app process runs all roles. For separate API nodes, set `UNOMI_WRITE_ES_CONSUMER_ENABLED=false`, `UNOMI_MERGE_CONSUMER_ENABLED=false`, and `UNOMI_SEGMENT_CONSUMER_ENABLED=false`. For dedicated worker services, enable only the consumer role you want that service to run.
 
 ## Run locally
 
@@ -127,6 +136,8 @@ Content-Type: application/json
   ]
 }
 ```
+
+Successful upsert responses return HTTP `202 Accepted` with `messageIds` for the Kafka commands that were accepted.
 
 Create a customer attribute definition:
 
@@ -248,6 +259,22 @@ Content-Type: application/json
 }
 ```
 
+Create or update a segment definition from a condition:
+
+```http
+POST /api/segments
+X-API-Key: dev-unomi-api-key
+Content-Type: application/json
+
+{
+  "key": "adultBuyers",
+  "name": "Adult Buyers",
+  "description": "Customers aged at least 18",
+  "conditionId": "condition-id-from-response",
+  "active": true
+}
+```
+
 ## Architecture direction
 
-The code starts as a modular monolith so the domain boundaries stay visible without operational overhead. As the product grows, good next modules are identity resolution, consent, segment evaluation, and event enrichment.
+The code starts as a modular monolith with Kafka-backed worker boundaries. API instances can accept traffic quickly, while worker instances can scale separately by sharing the `unomi-upsert-workers` consumer group. As the product grows, good next modules are identity resolution, consent, segment evaluation, and event enrichment.

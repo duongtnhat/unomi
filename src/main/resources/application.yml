@@ -11,6 +11,18 @@ spring:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.unomi.customer.upsert,com.unomi.customer.upsert.messaging
+        spring.json.value.default.type: com.unomi.customer.upsert.messaging.UpsertCustomerCommand
   flyway:
     enabled: true
   jpa:
@@ -36,3 +48,17 @@ management:
 
 server:
   port: ${SERVER_PORT:8080}
+
+unomi:
+  kafka:
+    consumers:
+      write-es:
+        enabled: ${UNOMI_WRITE_ES_CONSUMER_ENABLED:true}
+      merge:
+        enabled: ${UNOMI_MERGE_CONSUMER_ENABLED:true}
+      segment:
+        enabled: ${UNOMI_SEGMENT_CONSUMER_ENABLED:true}
+    topics:
+      customer-upsert: ${UNOMI_KAFKA_CUSTOMER_UPSERT_TOPIC:customer-upsert-commands}
+      profile-merge: ${UNOMI_KAFKA_PROFILE_MERGE_TOPIC:profile-merge-commands}
+      segment-qualification: ${UNOMI_KAFKA_SEGMENT_QUALIFICATION_TOPIC:segment-qualification-commands}
