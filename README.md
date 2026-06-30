@@ -58,6 +58,18 @@ OpenAPI JSON is available at:
 http://localhost:8080/v3/api-docs
 ```
 
+Seed local PostgreSQL metadata:
+
+```powershell
+Get-Content scripts\seed-postgresql-sample-data.sql | docker exec -i unomi-postgres-1 psql -U unomi -d unomi -v ON_ERROR_STOP=1
+```
+
+Seed local Elasticsearch sample profiles and events:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\seed-elasticsearch-sample-data.ps1
+```
+
 ## API sketch
 
 Create or update a customer profile:
@@ -151,7 +163,8 @@ Content-Type: application/json
   "name": "Lifetime Value",
   "type": "NUMBER",
   "mergePriority": 10,
-  "mergeStrategy": "SOURCE_PRIORITY"
+  "mergeStrategy": "SOURCE_PRIORITY",
+  "pii": false
 }
 ```
 

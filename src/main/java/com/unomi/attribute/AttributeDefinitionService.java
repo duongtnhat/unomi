@@ -71,6 +71,7 @@ public class AttributeDefinitionService {
         entity.setType(request.type());
         entity.setMergePriority(request.mergePriority());
         entity.setMergeStrategy(request.mergeStrategy());
+        entity.setPii(Boolean.TRUE.equals(request.pii()));
         AttributeDefinitionResponse response = AttributeDefinitionResponse.from(customerRepository.save(entity));
         refreshCustomerDefinitionsCache();
         return response;
@@ -90,6 +91,7 @@ public class AttributeDefinitionService {
         entity.setType(request.type());
         entity.setMergePriority(request.mergePriority());
         entity.setMergeStrategy(request.mergeStrategy());
+        entity.setPii(Boolean.TRUE.equals(request.pii()));
         AttributeDefinitionResponse response = AttributeDefinitionResponse.from(customerRepository.save(entity));
         refreshCustomerDefinitionsCache();
         return response;
@@ -113,6 +115,7 @@ public class AttributeDefinitionService {
                 definition.type(),
                 definition.mergePriority(),
                 definition.mergeStrategy(),
+                definition.pii(),
                 definition.createdAt(),
                 definition.updatedAt()
             ))
@@ -177,6 +180,7 @@ public class AttributeDefinitionService {
                 definition.type(),
                 null,
                 null,
+                null,
                 definition.createdAt(),
                 definition.updatedAt()
             ))
@@ -222,6 +226,7 @@ public class AttributeDefinitionService {
                 entity.getType(),
                 entity.getMergePriority(),
                 entity.getMergeStrategy(),
+                entity.isPii(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
             ))
@@ -239,6 +244,7 @@ public class AttributeDefinitionService {
                 entity.getKey(),
                 entity.getName(),
                 entity.getType(),
+                null,
                 null,
                 null,
                 entity.getCreatedAt(),

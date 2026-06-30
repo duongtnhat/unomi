@@ -19,6 +19,8 @@ public record AttributeDefinitionResponse(
     Integer mergePriority,
     @Schema(description = "Customer profile merge strategy. Null for event attributes.", example = "SOURCE_PRIORITY")
     CustomerAttributeMergeStrategy mergeStrategy,
+    @Schema(description = "Whether this customer attribute contains personally identifiable information. Null for event attributes.", example = "true")
+    Boolean pii,
     @Schema(description = "Creation timestamp in UTC.")
     Instant createdAt,
     @Schema(description = "Last update timestamp in UTC.")
@@ -32,6 +34,7 @@ public record AttributeDefinitionResponse(
             entity.getType(),
             entity.getMergePriority(),
             entity.getMergeStrategy(),
+            entity.isPii(),
             entity.getCreatedAt(),
             entity.getUpdatedAt()
         );
@@ -43,6 +46,7 @@ public record AttributeDefinitionResponse(
             entity.getKey(),
             entity.getName(),
             entity.getType(),
+            null,
             null,
             null,
             entity.getCreatedAt(),

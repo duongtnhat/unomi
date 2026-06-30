@@ -13,6 +13,7 @@ public record CachedAttributeDefinition(
     AttributeValueType type,
     Integer mergePriority,
     CustomerAttributeMergeStrategy mergeStrategy,
+    Boolean pii,
     Instant createdAt,
     Instant updatedAt
 ) {

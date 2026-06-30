@@ -15,6 +15,8 @@ public record AttributeDefinitionRequest(
     @Schema(description = "Customer profile merge priority. Null means this attribute is not used as a merge identifier.", example = "10")
     Integer mergePriority,
     @Schema(description = "Customer profile merge strategy. Used only for customer attributes.", example = "SOURCE_PRIORITY")
-    CustomerAttributeMergeStrategy mergeStrategy
+    CustomerAttributeMergeStrategy mergeStrategy,
+    @Schema(description = "Whether this customer attribute contains personally identifiable information. Used only for customer attributes.", example = "true")
+    Boolean pii
 ) {
 }

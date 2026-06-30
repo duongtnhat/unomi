@@ -42,6 +42,9 @@ public class CustomerAttributeDefinitionEntity {
     @Column(name = "merge_strategy", length = 60)
     private CustomerAttributeMergeStrategy mergeStrategy;
 
+    @Column(nullable = false)
+    private boolean pii = false;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
