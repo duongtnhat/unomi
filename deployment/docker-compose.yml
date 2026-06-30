@@ -18,6 +18,10 @@ services:
       UNOMI_SEGMENT_CONSUMER_ENABLED: "true"
       UNOMI_RULE_CONSUMER_ENABLED: "true"
       UNOMI_ACTION_CONSUMER_ENABLED: "true"
+      UNOMI_WEBHOOK_CONSUMER_ENABLED: "true"
+      UNOMI_EMAIL_CONSUMER_ENABLED: "true"
+      UNOMI_KAFKA_WEBHOOK_PROCESSING_TOPIC: action-processing-webhook
+      UNOMI_KAFKA_EMAIL_PROCESSING_TOPIC: action-processing-email
     ports:
       - "8080:8080"
     depends_on:

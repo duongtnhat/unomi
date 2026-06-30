@@ -21,7 +21,7 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: com.unomi.customer.upsert,com.unomi.customer.upsert.messaging,com.unomi.action.messaging
+        spring.json.trusted.packages: com.unomi.customer.upsert,com.unomi.customer.upsert.messaging,com.unomi.action.messaging,com.unomi.webhook.messaging,com.unomi.email.messaging
         spring.json.value.default.type: com.unomi.customer.upsert.messaging.UpsertCustomerCommand
   flyway:
     enabled: true
@@ -66,9 +66,17 @@ unomi:
         enabled: ${UNOMI_RULE_CONSUMER_ENABLED:true}
       action:
         enabled: ${UNOMI_ACTION_CONSUMER_ENABLED:true}
+      webhook:
+        enabled: ${UNOMI_WEBHOOK_CONSUMER_ENABLED:true}
+      email:
+        enabled: ${UNOMI_EMAIL_CONSUMER_ENABLED:true}
     topics:
       customer-upsert: ${UNOMI_KAFKA_CUSTOMER_UPSERT_TOPIC:customer-upsert-commands}
       profile-merge: ${UNOMI_KAFKA_PROFILE_MERGE_TOPIC:profile-merge-commands}
       segment-qualification: ${UNOMI_KAFKA_SEGMENT_QUALIFICATION_TOPIC:segment-qualification-commands}
       rule-evaluation: ${UNOMI_KAFKA_RULE_EVALUATION_TOPIC:rule-evaluation-commands}
       action-execution: ${UNOMI_KAFKA_ACTION_EXECUTION_TOPIC:action-execution-commands}
+    webhook:
+      processing-topic: ${UNOMI_KAFKA_WEBHOOK_PROCESSING_TOPIC:action-processing-webhook}
+    email:
+      processing-topic: ${UNOMI_KAFKA_EMAIL_PROCESSING_TOPIC:action-processing-email}

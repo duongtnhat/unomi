@@ -16,6 +16,8 @@ public record ActionTypeDefinitionResponse(
     String name,
     @Schema(description = "Optional action type description.")
     String description,
+    @Schema(description = "Kafka topic used to process actions of this type.", example = "action-processing-webhook")
+    String processingChannel,
     @Schema(description = "Whether this action type can be used by rules.", example = "true")
     boolean active,
     @Schema(description = "Parameters supported by this action type.")
@@ -31,6 +33,7 @@ public record ActionTypeDefinitionResponse(
             entity.getKey(),
             entity.getName(),
             entity.getDescription(),
+            entity.getProcessingChannel(),
             entity.isActive(),
             entity.getParams(),
             entity.getCreatedAt(),

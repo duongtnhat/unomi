@@ -39,6 +39,9 @@ public class RuleActionEventEntity {
     @Column(name = "profile_id", nullable = false, length = 160)
     private String profileId;
 
+    @Column(name = "tracking_id")
+    private UUID trackingId;
+
     @Column(name = "action_key", nullable = false, length = 160)
     private String actionKey;
 

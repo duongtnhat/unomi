@@ -109,6 +109,7 @@ public class ActionTypeDefinitionService {
         entity.setKey(request.key());
         entity.setName(request.name());
         entity.setDescription(request.description());
+        entity.setProcessingChannel(request.processingChannel());
         entity.setActive(request.active() == null || request.active());
         entity.setParams(request.params());
     }

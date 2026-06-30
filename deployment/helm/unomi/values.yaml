@@ -81,6 +81,12 @@ env:
     segmentEnabled: true
     ruleEnabled: true
     actionEnabled: true
+    webhookEnabled: true
+    emailEnabled: true
+  webhook:
+    processingTopic: action-processing-webhook
+  email:
+    processingTopic: action-processing-email
 
 extraEnv: []
 

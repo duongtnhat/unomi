@@ -24,11 +24,13 @@ The batch customer upsert API is asynchronous. It validates each user item and p
 - `unomi-merge-workers` consumes `profile-merge-commands`, runs profile merge, then publishes `segment-qualification-commands`.
 - `unomi-segment-workers` consumes `segment-qualification-commands`, updates `segmentIds`/`segmentKeys`, then publishes `rule-evaluation-commands`.
 - `unomi-rule-workers` consumes `rule-evaluation-commands`, evaluates active rules, updates profile attributes/tags/scores, writes `scoreChanged` events to Elasticsearch, and stores action events in PostgreSQL.
-- `unomi-action-workers` consumes `action-execution-commands`, logs the action for now, and marks the action event as `RESOLVED`.
+- `unomi-action-workers` consumes `action-execution-commands`, forwards each action to the Kafka processing channel configured on its action type, logs it, and marks the action event as `RESOLVED`.
 
 For local development, one app process runs all roles. For separate API nodes, set `UNOMI_WRITE_ES_CONSUMER_ENABLED=false`, `UNOMI_MERGE_CONSUMER_ENABLED=false`, `UNOMI_SEGMENT_CONSUMER_ENABLED=false`, `UNOMI_RULE_CONSUMER_ENABLED=false`, and `UNOMI_ACTION_CONSUMER_ENABLED=false`. For dedicated worker services, enable only the consumer role you want that service to run.
 
 Kafka publishing uses a PostgreSQL outbox. The API records accepted commands in `inbox_events` and enqueues Kafka messages in `outbox_events`; a scheduled outbox publisher sends them to Kafka. Each worker records completion in `processed_messages` by `messageId` and stage, so retries do not re-run the same stage.
+
+See [Data Flow](docs/data-flow.md) for the current end-to-end pipeline and action channel registry.
 
 ## Run locally
 
@@ -388,6 +390,7 @@ Content-Type: application/json
   "key": "WEBHOOK",
   "name": "Webhook",
   "description": "Sends an outbound webhook to an integration worker.",
+  "processingChannel": "action-processing-webhook",
   "active": true,
   "params": [
     {
@@ -409,6 +412,79 @@ Content-Type: application/json
 
 ```http
 GET /api/action-types/{id}/params
+X-API-Key: dev-unomi-api-key
+```
+
+Create a webhook template used by `WEBHOOK` actions:
+
+```http
+POST /api/webhook-templates
+X-API-Key: dev-unomi-api-key
+Content-Type: application/json
+
+{
+  "key": "highValuePurchase",
+  "name": "High Value Purchase Webhook",
+  "method": "POST",
+  "url": "https://example.com/webhooks/high-value-purchase",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"profileId\":\"{{profileId}}\",\"template\":\"{{payload.template}}\"}",
+  "active": true
+}
+```
+
+Inspect recent webhook call history:
+
+```http
+GET /api/webhook-templates/calls
+X-API-Key: dev-unomi-api-key
+```
+
+Create SMTP config and an email template used by `EMAIL` actions:
+
+```http
+POST /api/email-smtp-configs
+X-API-Key: dev-unomi-api-key
+Content-Type: application/json
+
+{
+  "key": "defaultSmtp",
+  "name": "Default SMTP",
+  "host": "smtp.example.com",
+  "port": 587,
+  "username": "smtp-user",
+  "password": "smtp-password",
+  "fromAddress": "noreply@example.com",
+  "fromName": "Unomi Modern",
+  "authEnabled": true,
+  "startTlsEnabled": true,
+  "active": true
+}
+```
+
+```http
+POST /api/email-templates
+X-API-Key: dev-unomi-api-key
+Content-Type: application/json
+
+{
+  "key": "welcomeEmail",
+  "name": "Welcome Email",
+  "smtpConfigId": "smtp-config-id-from-response",
+  "toAddress": "{{payload.email}}",
+  "subject": "Welcome {{payload.firstName}}",
+  "body": "<p>Hello {{payload.firstName}}, welcome.</p>",
+  "contentType": "text/html; charset=UTF-8",
+  "active": true
+}
+```
+
+Inspect recent email call history:
+
+```http
+GET /api/email-templates/calls
 X-API-Key: dev-unomi-api-key
 ```
 

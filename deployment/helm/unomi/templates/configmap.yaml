@@ -18,3 +18,7 @@ data:
   UNOMI_SEGMENT_CONSUMER_ENABLED: {{ .Values.env.consumers.segmentEnabled | quote }}
   UNOMI_RULE_CONSUMER_ENABLED: {{ .Values.env.consumers.ruleEnabled | quote }}
   UNOMI_ACTION_CONSUMER_ENABLED: {{ .Values.env.consumers.actionEnabled | quote }}
+  UNOMI_WEBHOOK_CONSUMER_ENABLED: {{ .Values.env.consumers.webhookEnabled | quote }}
+  UNOMI_EMAIL_CONSUMER_ENABLED: {{ .Values.env.consumers.emailEnabled | quote }}
+  UNOMI_KAFKA_WEBHOOK_PROCESSING_TOPIC: {{ .Values.env.webhook.processingTopic | quote }}
+  UNOMI_KAFKA_EMAIL_PROCESSING_TOPIC: {{ .Values.env.email.processingTopic | quote }}

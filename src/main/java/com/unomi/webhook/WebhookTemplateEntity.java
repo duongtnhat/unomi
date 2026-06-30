@@ -1,8 +1,8 @@
-package com.unomi.action;
+package com.unomi.webhook;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import org.hibernate.annotations.JdbcTypeCode;
@@ -21,35 +21,38 @@ import lombok.Setter;
 
 @Entity
 @Table(
-    name = "action_type_definitions",
-    uniqueConstraints = @UniqueConstraint(name = "ux_action_type_definitions_key", columnNames = "action_key")
+    name = "webhook_templates",
+    uniqueConstraints = @UniqueConstraint(name = "ux_webhook_templates_key", columnNames = "template_key")
 )
 @Getter
 @Setter
 @NoArgsConstructor
-public class ActionTypeDefinitionEntity {
+public class WebhookTemplateEntity {
 
     @Id
     private UUID id;
 
-    @Column(name = "action_key", nullable = false, length = 160)
+    @Column(name = "template_key", nullable = false, length = 160)
     private String key;
 
     @Column(nullable = false)
     private String name;
 
-    @Column(columnDefinition = "text")
-    private String description;
+    @Column(nullable = false, length = 16)
+    private String method;
 
-    @Column(name = "processing_channel", nullable = false)
-    private String processingChannel;
-
-    @Column(nullable = false)
-    private boolean active = true;
+    @Column(nullable = false, columnDefinition = "text")
+    private String url;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
-    private List<ActionParameterDefinition> params = new ArrayList<>();
+    private Map<String, String> headers = new LinkedHashMap<>();
+
+    @Column(nullable = false, columnDefinition = "text")
+    private String body;
+
+    @Column(nullable = false)
+    private boolean active = true;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

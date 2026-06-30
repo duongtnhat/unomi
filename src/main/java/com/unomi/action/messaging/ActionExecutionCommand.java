@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record ActionExecutionCommand(
     @Schema(description = "Rule action event ID used as the idempotency key.")
     UUID actionEventId,
+    @Schema(description = "Action tracking UUID carried across action consumers.")
+    UUID trackingId,
     @Schema(description = "Original pipeline message ID.")
     String messageId,
     @Schema(description = "Command creation timestamp.")

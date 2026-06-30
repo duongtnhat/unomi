@@ -289,6 +289,7 @@ public class RuleEvaluationService {
         entity.setRuleKey(rule.key());
         entity.setMessageId(messageId);
         entity.setProfileId(profileId);
+        entity.setTrackingId(java.util.UUID.randomUUID());
         Object actionKey = actionMap.containsKey("key") ? actionMap.get("key") : rule.key();
         Object actionType = actionMap.containsKey("type") ? actionMap.get("type") : "ACTION";
         entity.setActionKey(String.valueOf(actionKey));
@@ -304,6 +305,7 @@ public class RuleEvaluationService {
         RuleActionEventEntity saved = actionEventRepository.save(entity);
         actionExecutionCommandPublisher.publish(new ActionExecutionCommand(
             saved.getId(),
+            saved.getTrackingId(),
             messageId,
             Instant.now(),
             profileId,

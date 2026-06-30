@@ -1,12 +1,7 @@
-package com.unomi.action;
+package com.unomi.email;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
-
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,35 +16,48 @@ import lombok.Setter;
 
 @Entity
 @Table(
-    name = "action_type_definitions",
-    uniqueConstraints = @UniqueConstraint(name = "ux_action_type_definitions_key", columnNames = "action_key")
+    name = "email_smtp_configs",
+    uniqueConstraints = @UniqueConstraint(name = "ux_email_smtp_configs_key", columnNames = "config_key")
 )
 @Getter
 @Setter
 @NoArgsConstructor
-public class ActionTypeDefinitionEntity {
+public class EmailSmtpConfigEntity {
 
     @Id
     private UUID id;
 
-    @Column(name = "action_key", nullable = false, length = 160)
+    @Column(name = "config_key", nullable = false, length = 160)
     private String key;
 
     @Column(nullable = false)
     private String name;
 
-    @Column(columnDefinition = "text")
-    private String description;
+    @Column(nullable = false)
+    private String host;
 
-    @Column(name = "processing_channel", nullable = false)
-    private String processingChannel;
+    @Column(nullable = false)
+    private int port;
+
+    private String username;
+
+    @Column(columnDefinition = "text")
+    private String password;
+
+    @Column(name = "from_address", nullable = false, length = 320)
+    private String fromAddress;
+
+    @Column(name = "from_name")
+    private String fromName;
+
+    @Column(name = "auth_enabled", nullable = false)
+    private boolean authEnabled = true;
+
+    @Column(name = "start_tls_enabled", nullable = false)
+    private boolean startTlsEnabled = true;
 
     @Column(nullable = false)
     private boolean active = true;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(nullable = false, columnDefinition = "jsonb")
-    private List<ActionParameterDefinition> params = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

@@ -452,6 +452,7 @@ INSERT INTO action_type_definitions (
     action_key,
     name,
     description,
+    processing_channel,
     active,
     params,
     created_at,
@@ -463,6 +464,7 @@ VALUES
         'WEBHOOK',
         'Webhook',
         'Sends an outbound webhook to an integration worker.',
+        'action-processing-webhook',
         true,
         '[
             {
@@ -488,6 +490,7 @@ VALUES
         'CRM_NOTIFICATION',
         'CRM Notification',
         'Creates a CRM notification action for downstream integration.',
+        'action-processing-crm-notification',
         true,
         '[
             {
@@ -500,13 +503,221 @@ VALUES
         ]'::jsonb,
         now(),
         now()
+    ),
+    (
+        '68ea0b21-5c8a-4d4f-bbe8-44e65089b061',
+        'EMAIL',
+        'Email',
+        'Sends an email action to the email processing channel.',
+        'action-processing-email',
+        true,
+        '[
+            {
+                "key": "template",
+                "name": "Template",
+                "type": "TEXT",
+                "required": true,
+                "description": "Email template key."
+            },
+            {
+                "key": "subject",
+                "name": "Subject",
+                "type": "TEXT",
+                "required": false,
+                "description": "Optional email subject override."
+            }
+        ]'::jsonb,
+        now(),
+        now()
+    ),
+    (
+        '2b12cddd-6f88-4489-9ebd-2814ec31f686',
+        'WEB_PUSH',
+        'Web Push',
+        'Sends a browser web push action to the web push processing channel.',
+        'action-processing-web-push',
+        true,
+        '[
+            {
+                "key": "template",
+                "name": "Template",
+                "type": "TEXT",
+                "required": true,
+                "description": "Web push template key."
+            },
+            {
+                "key": "url",
+                "name": "URL",
+                "type": "TEXT",
+                "required": false,
+                "description": "Optional landing URL."
+            }
+        ]'::jsonb,
+        now(),
+        now()
+    ),
+    (
+        '45b27b8c-b7c1-489c-9697-2296611e5d29',
+        'APP_PUSH',
+        'App Push',
+        'Sends a mobile app push action to the app push processing channel.',
+        'action-processing-app-push',
+        true,
+        '[
+            {
+                "key": "template",
+                "name": "Template",
+                "type": "TEXT",
+                "required": true,
+                "description": "App push template key."
+            },
+            {
+                "key": "deeplink",
+                "name": "Deeplink",
+                "type": "TEXT",
+                "required": false,
+                "description": "Optional app deeplink."
+            }
+        ]'::jsonb,
+        now(),
+        now()
     )
 ON CONFLICT (action_key) DO UPDATE
 SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,
+    processing_channel = EXCLUDED.processing_channel,
     active = EXCLUDED.active,
     params = EXCLUDED.params,
+    updated_at = now();
+
+INSERT INTO webhook_templates (
+    id,
+    template_key,
+    name,
+    method,
+    url,
+    headers,
+    body,
+    active,
+    created_at,
+    updated_at
+)
+VALUES
+    (
+        '02d63f14-0de8-49b3-9f94-92a8649acbd6',
+        'highValuePurchase',
+        'High Value Purchase Webhook',
+        'POST',
+        'https://example.com/webhooks/high-value-purchase',
+        '{
+            "Content-Type": "application/json",
+            "X-Source": "unomi-modern"
+        }'::jsonb,
+        '{
+            "profileId": "{{profileId}}",
+            "messageId": "{{messageId}}",
+            "ruleKey": "{{ruleKey}}",
+            "actionKey": "{{actionKey}}",
+            "template": "{{payload.template}}"
+        }',
+        true,
+        now(),
+        now()
+    )
+ON CONFLICT (template_key) DO UPDATE
+SET
+    name = EXCLUDED.name,
+    method = EXCLUDED.method,
+    url = EXCLUDED.url,
+    headers = EXCLUDED.headers,
+    body = EXCLUDED.body,
+    active = EXCLUDED.active,
+    updated_at = now();
+
+INSERT INTO email_smtp_configs (
+    id,
+    config_key,
+    name,
+    host,
+    port,
+    username,
+    password,
+    from_address,
+    from_name,
+    auth_enabled,
+    start_tls_enabled,
+    active,
+    created_at,
+    updated_at
+)
+VALUES
+    (
+        'c5848424-a9bc-42fc-9f8d-bc5b845b8926',
+        'defaultSmtp',
+        'Default SMTP',
+        'smtp.example.com',
+        587,
+        'smtp-user',
+        'smtp-password',
+        'noreply@example.com',
+        'Unomi Modern',
+        true,
+        true,
+        true,
+        now(),
+        now()
+    )
+ON CONFLICT (config_key) DO UPDATE
+SET
+    name = EXCLUDED.name,
+    host = EXCLUDED.host,
+    port = EXCLUDED.port,
+    username = EXCLUDED.username,
+    password = EXCLUDED.password,
+    from_address = EXCLUDED.from_address,
+    from_name = EXCLUDED.from_name,
+    auth_enabled = EXCLUDED.auth_enabled,
+    start_tls_enabled = EXCLUDED.start_tls_enabled,
+    active = EXCLUDED.active,
+    updated_at = now();
+
+INSERT INTO email_templates (
+    id,
+    template_key,
+    name,
+    smtp_config_id,
+    to_address,
+    subject,
+    body,
+    content_type,
+    active,
+    created_at,
+    updated_at
+)
+VALUES
+    (
+        'db71cc7d-d972-4c86-9b3e-5a2ff343f52d',
+        'welcomeEmail',
+        'Welcome Email',
+        'c5848424-a9bc-42fc-9f8d-bc5b845b8926',
+        '{{payload.email}}',
+        'Welcome {{payload.firstName}}',
+        '<p>Hello {{payload.firstName}}, welcome to Unomi Modern.</p>',
+        'text/html; charset=UTF-8',
+        true,
+        now(),
+        now()
+    )
+ON CONFLICT (template_key) DO UPDATE
+SET
+    name = EXCLUDED.name,
+    smtp_config_id = EXCLUDED.smtp_config_id,
+    to_address = EXCLUDED.to_address,
+    subject = EXCLUDED.subject,
+    body = EXCLUDED.body,
+    content_type = EXCLUDED.content_type,
+    active = EXCLUDED.active,
     updated_at = now();
 
 INSERT INTO definitions (

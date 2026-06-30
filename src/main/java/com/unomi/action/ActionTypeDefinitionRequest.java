@@ -15,6 +15,8 @@ public record ActionTypeDefinitionRequest(
     @NotBlank String name,
     @Schema(description = "Optional action type description.", example = "Calls an external HTTP endpoint.")
     String description,
+    @Schema(description = "Kafka topic used to process actions of this type.", example = "action-processing-webhook")
+    @NotBlank String processingChannel,
     @Schema(description = "Whether this action type can be used by rules.", example = "true")
     Boolean active,
     @Schema(description = "Parameters supported by this action type.")
