@@ -1,6 +1,8 @@
 package com.unomi.customer.upsert;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -8,10 +10,12 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.unomi.customer.upsert.messaging.UpsertCustomerCommand;
 import com.unomi.customer.upsert.messaging.UpsertCustomerCommandPublisher;
+import com.unomi.pipeline.InboxService;
 
 @Service
 public class UpsertCustomerInfoService {
@@ -19,11 +23,17 @@ public class UpsertCustomerInfoService {
     private static final int MAX_USERS_PER_REQUEST = 1_000;
 
     private final UpsertCustomerCommandPublisher publisher;
+    private final InboxService inboxService;
 
-    public UpsertCustomerInfoService(UpsertCustomerCommandPublisher publisher) {
+    public UpsertCustomerInfoService(
+        UpsertCustomerCommandPublisher publisher,
+        InboxService inboxService
+    ) {
         this.publisher = publisher;
+        this.inboxService = inboxService;
     }
 
+    @Transactional
     public UpsertCustomerInfoResponse upsert(UpsertCustomerInfoRequest request) {
         if (request.users() == null || request.users().isEmpty()) {
             throw new IllegalArgumentException("users must be defined");
@@ -48,7 +58,10 @@ public class UpsertCustomerInfoService {
             }
 
             String messageId = UUID.randomUUID().toString();
-            publisher.publish(new UpsertCustomerCommand(messageId, Instant.now(), skipHook, user));
+            Instant acceptedAt = Instant.now();
+            UpsertCustomerCommand command = new UpsertCustomerCommand(messageId, acceptedAt, skipHook, user);
+            inboxService.record(messageId, "customer-upsert-api", command, acceptedAt);
+            publisher.publish(command);
             messageIds.add(messageId);
             if (StringUtils.hasText(user.insiderId())) {
                 knownProfileIds.add(user.insiderId());
@@ -80,6 +93,7 @@ public class UpsertCustomerInfoService {
             && (user.events() == null || user.events().isEmpty())) {
             errors.add("each user must include attributes or events");
         }
+        validateEvents(index, user.events(), errors);
         Object email = safeMap(user.identifiers()).get("email");
         if (email instanceof String value && !value.matches("^.+@.+\\..+$")) {
             errors.add("not a valid email address at users." + index + ".identifiers.email");
@@ -89,6 +103,43 @@ public class UpsertCustomerInfoService {
             errors.add("not a valid phone number at users." + index + ".identifiers.phoneNumber");
         }
         return errors;
+    }
+
+    private void validateEvents(int userIndex, List<UpsertEventRequest> events, List<String> errors) {
+        if (events == null) {
+            return;
+        }
+
+        for (int eventIndex = 0; eventIndex < events.size(); eventIndex++) {
+            UpsertEventRequest event = events.get(eventIndex);
+            if (event == null) {
+                errors.add("event must be an object at users." + userIndex + ".events." + eventIndex);
+                continue;
+            }
+            if (!StringUtils.hasText(event.eventName())) {
+                errors.add("eventName is required at users." + userIndex + ".events." + eventIndex);
+            }
+            if (!isValidTimestamp(event.timestamp())) {
+                errors.add("timestamp must be a valid RFC3339 datetime at users." + userIndex + ".events." + eventIndex);
+            }
+        }
+    }
+
+    private boolean isValidTimestamp(String timestamp) {
+        if (!StringUtils.hasText(timestamp)) {
+            return false;
+        }
+        try {
+            OffsetDateTime.parse(timestamp);
+            return true;
+        } catch (DateTimeParseException exception) {
+            try {
+                Instant.parse(timestamp);
+                return true;
+            } catch (DateTimeParseException ignored) {
+                return false;
+            }
+        }
     }
 
     private Map<String, Object> safeMap(Map<String, Object> map) {

@@ -49,6 +49,12 @@ public class CustomerProfileDocument {
     @Field(type = FieldType.Keyword)
     private List<String> segmentKeys = new ArrayList<>();
 
+    @Field(type = FieldType.Keyword)
+    private List<String> tags = new ArrayList<>();
+
+    @Field(type = FieldType.Object)
+    private Map<String, Object> scores = new LinkedHashMap<>();
+
     @Field(type = FieldType.Date, format = DateFormat.date_time)
     private Instant createdAt;
 

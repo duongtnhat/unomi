@@ -6,6 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record CustomerUpsertKafkaProperties(
     String customerUpsert,
     String profileMerge,
-    String segmentQualification
+    String segmentQualification,
+    String ruleEvaluation,
+    String actionExecution
 ) {
 }

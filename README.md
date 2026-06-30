@@ -7,8 +7,8 @@ This first slice keeps the scope intentionally narrow:
 - Customer profiles live in Elasticsearch.
 - Customer events live in Elasticsearch.
 - Definitions and configuration live in PostgreSQL as JSONB.
-- Customer upsert writes, profile merging, event writes, and segment qualification run asynchronously through Kafka.
-- Personalization, campaigns, scoring, and complex rule execution are out of scope for now.
+- Customer upsert writes, profile merging, event writes, segment qualification, and rule evaluation run asynchronously through Kafka.
+- Personalization and campaigns are out of scope for now, but rule-driven attributes, tags, actions, and scoring are supported.
 
 ## API conventions
 
@@ -22,9 +22,13 @@ The batch customer upsert API is asynchronous. It validates each user item and p
 
 - `unomi-write-es-workers` consumes `customer-upsert-commands`, writes profile/event data to Elasticsearch, then publishes `profile-merge-commands` when `skipHook` is `false`.
 - `unomi-merge-workers` consumes `profile-merge-commands`, runs profile merge, then publishes `segment-qualification-commands`.
-- `unomi-segment-workers` consumes `segment-qualification-commands` and updates `segmentIds`/`segmentKeys`.
+- `unomi-segment-workers` consumes `segment-qualification-commands`, updates `segmentIds`/`segmentKeys`, then publishes `rule-evaluation-commands`.
+- `unomi-rule-workers` consumes `rule-evaluation-commands`, evaluates active rules, updates profile attributes/tags/scores, writes `scoreChanged` events to Elasticsearch, and stores action events in PostgreSQL.
+- `unomi-action-workers` consumes `action-execution-commands`, logs the action for now, and marks the action event as `RESOLVED`.
 
-For local development, one app process runs all roles. For separate API nodes, set `UNOMI_WRITE_ES_CONSUMER_ENABLED=false`, `UNOMI_MERGE_CONSUMER_ENABLED=false`, and `UNOMI_SEGMENT_CONSUMER_ENABLED=false`. For dedicated worker services, enable only the consumer role you want that service to run.
+For local development, one app process runs all roles. For separate API nodes, set `UNOMI_WRITE_ES_CONSUMER_ENABLED=false`, `UNOMI_MERGE_CONSUMER_ENABLED=false`, `UNOMI_SEGMENT_CONSUMER_ENABLED=false`, `UNOMI_RULE_CONSUMER_ENABLED=false`, and `UNOMI_ACTION_CONSUMER_ENABLED=false`. For dedicated worker services, enable only the consumer role you want that service to run.
+
+Kafka publishing uses a PostgreSQL outbox. The API records accepted commands in `inbox_events` and enqueues Kafka messages in `outbox_events`; a scheduled outbox publisher sends them to Kafka. Each worker records completion in `processed_messages` by `messageId` and stage, so retries do not re-run the same stage.
 
 ## Run locally
 
@@ -288,6 +292,126 @@ Content-Type: application/json
 }
 ```
 
+Create or update a rule definition from a condition:
+
+```http
+POST /api/rules
+X-API-Key: dev-unomi-api-key
+Content-Type: application/json
+
+{
+  "key": "vipCustomerRule",
+  "name": "VIP Customer Rule",
+  "description": "Adds VIP outputs when lifetimeValue is high.",
+  "conditionId": "condition-id-from-response",
+  "priority": 100,
+  "active": true,
+  "outputs": {
+    "attributes": {
+      "loyaltyTier": "gold"
+    },
+    "tags": ["vip", "high-value"],
+    "scores": {
+      "engagement": {
+        "operation": "INCREASE",
+        "value": 10
+      },
+      "commercialValue": {
+        "operation": "SET",
+        "value": 25
+      }
+    },
+    "actions": [
+      {
+        "key": "notifyCrmVip",
+        "type": "CRM_NOTIFICATION",
+        "payload": {
+          "reason": "vipCustomer"
+        }
+      }
+    ]
+  }
+}
+```
+
+Create a scoring definition used by rule outputs:
+
+```http
+POST /api/scorings
+X-API-Key: dev-unomi-api-key
+Content-Type: application/json
+
+{
+  "key": "engagement",
+  "name": "Engagement",
+  "type": "NUMBER",
+  "startValue": 0,
+  "minValue": 0,
+  "maxValue": 100,
+  "onlyIncrease": false,
+  "onlyDecrease": false,
+  "active": true
+}
+```
+
+Manage scores attached to one profile:
+
+```http
+GET /api/scorings/profiles/profile-1/scores
+X-API-Key: dev-unomi-api-key
+```
+
+```http
+POST /api/scorings/profiles/profile-1/scores/engagement
+X-API-Key: dev-unomi-api-key
+Content-Type: application/json
+
+{
+  "operation": "INCREASE",
+  "value": 10
+}
+```
+
+```http
+DELETE /api/scorings/profiles/profile-1/scores
+X-API-Key: dev-unomi-api-key
+```
+
+Create an action type and inspect its params:
+
+```http
+POST /api/action-types
+X-API-Key: dev-unomi-api-key
+Content-Type: application/json
+
+{
+  "key": "WEBHOOK",
+  "name": "Webhook",
+  "description": "Sends an outbound webhook to an integration worker.",
+  "active": true,
+  "params": [
+    {
+      "key": "template",
+      "name": "Template",
+      "type": "TEXT",
+      "required": true,
+      "description": "Template or routing key used by the webhook executor."
+    },
+    {
+      "key": "webhookUrl",
+      "name": "Webhook URL",
+      "type": "TEXT",
+      "required": false
+    }
+  ]
+}
+```
+
+```http
+GET /api/action-types/{id}/params
+X-API-Key: dev-unomi-api-key
+```
+
 ## Architecture direction
 
-The code starts as a modular monolith with Kafka-backed worker boundaries. API instances can accept traffic quickly, while worker instances can scale separately by sharing the `unomi-upsert-workers` consumer group. As the product grows, good next modules are identity resolution, consent, segment evaluation, and event enrichment.
+The code starts as a modular monolith with Kafka-backed worker boundaries. API instances can accept traffic quickly, while worker instances can scale each pipeline stage separately by consumer group. As the product grows, good next modules are identity resolution, consent, connector destinations, and event enrichment.

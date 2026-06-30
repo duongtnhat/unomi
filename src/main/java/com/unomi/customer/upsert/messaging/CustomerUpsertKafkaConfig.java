@@ -33,4 +33,20 @@ public class CustomerUpsertKafkaConfig {
             .replicas(1)
             .build();
     }
+
+    @Bean
+    NewTopic ruleEvaluationTopic(CustomerUpsertKafkaProperties properties) {
+        return TopicBuilder.name(properties.ruleEvaluation())
+            .partitions(6)
+            .replicas(1)
+            .build();
+    }
+
+    @Bean
+    NewTopic actionExecutionTopic(CustomerUpsertKafkaProperties properties) {
+        return TopicBuilder.name(properties.actionExecution())
+            .partitions(6)
+            .replicas(1)
+            .build();
+    }
 }

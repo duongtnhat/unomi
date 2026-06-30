@@ -23,7 +23,9 @@ import com.unomi.customer.profile.CustomerProfileRepository;
 import com.unomi.segment.SegmentMembershipService;
 import com.unomi.customer.upsert.messaging.ElasticsearchWriteCompletedCommand;
 import com.unomi.customer.upsert.messaging.ProfileMergeCompletedCommand;
+import com.unomi.customer.upsert.messaging.RuleEvaluationCommand;
 import com.unomi.customer.upsert.messaging.UpsertCustomerCommand;
+import com.unomi.rule.RuleEvaluationService;
 
 @Service
 public class UpsertCustomerInfoProcessor {
@@ -33,24 +35,27 @@ public class UpsertCustomerInfoProcessor {
     private final AttributeDefinitionService attributeDefinitionService;
     private final CustomerProfileMergeService mergeService;
     private final SegmentMembershipService segmentMembershipService;
+    private final RuleEvaluationService ruleEvaluationService;
 
     public UpsertCustomerInfoProcessor(
         CustomerProfileRepository profileRepository,
         CustomerEventRepository eventRepository,
         AttributeDefinitionService attributeDefinitionService,
         CustomerProfileMergeService mergeService,
-        SegmentMembershipService segmentMembershipService
+        SegmentMembershipService segmentMembershipService,
+        RuleEvaluationService ruleEvaluationService
     ) {
         this.profileRepository = profileRepository;
         this.eventRepository = eventRepository;
         this.attributeDefinitionService = attributeDefinitionService;
         this.mergeService = mergeService;
         this.segmentMembershipService = segmentMembershipService;
+        this.ruleEvaluationService = ruleEvaluationService;
     }
 
     public ElasticsearchWriteCompletedCommand writeElasticsearch(UpsertCustomerCommand command) {
         CustomerProfileDocument profile = upsertProfile(command.user());
-        upsertEvents(command.user(), profile);
+        upsertEvents(command.messageId(), command.user(), profile);
         return new ElasticsearchWriteCompletedCommand(
             command.messageId(),
             Instant.now(),
@@ -76,6 +81,16 @@ public class UpsertCustomerInfoProcessor {
         CustomerProfileDocument profile = profileRepository.findById(command.profileId())
             .orElseThrow(() -> new IllegalArgumentException("Profile not found for segment qualification: " + command.profileId()));
         return segmentMembershipService.updateMembership(profile, command.user().events());
+    }
+
+    public RuleEvaluationCommand ruleEvaluationCommand(ProfileMergeCompletedCommand command) {
+        return new RuleEvaluationCommand(command.messageId(), Instant.now(), command.profileId(), command.user());
+    }
+
+    public CustomerProfileDocument evaluateRules(RuleEvaluationCommand command) {
+        CustomerProfileDocument profile = profileRepository.findById(command.profileId())
+            .orElseThrow(() -> new IllegalArgumentException("Profile not found for rule evaluation: " + command.profileId()));
+        return ruleEvaluationService.evaluate(command.messageId(), profile, command.user().events());
     }
 
     private CustomerProfileDocument upsertProfile(UpsertUserRequest user) {
@@ -136,7 +151,7 @@ public class UpsertCustomerInfoProcessor {
         return Optional.empty();
     }
 
-    private void upsertEvents(UpsertUserRequest user, CustomerProfileDocument profile) {
+    private void upsertEvents(String messageId, UpsertUserRequest user, CustomerProfileDocument profile) {
         if (user.events() == null) {
             return;
         }
@@ -153,7 +168,7 @@ public class UpsertCustomerInfoProcessor {
 
             CustomerEventDocument event = new CustomerEventDocument();
             Map<String, Object> payload = attributeDefinitionService.filterEventAttributes(safeMap(request.eventParams()));
-            event.setId(UUID.randomUUID().toString());
+            event.setId(messageId + "-event-" + eventIndex);
             event.setProfileId(profile.getId());
             event.setEventType(request.eventName());
             event.setSource("upsert");

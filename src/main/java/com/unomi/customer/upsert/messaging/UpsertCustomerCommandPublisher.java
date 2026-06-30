@@ -1,31 +1,36 @@
 package com.unomi.customer.upsert.messaging;
 
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+
+import com.unomi.pipeline.OutboxService;
 
 @Service
 public class UpsertCustomerCommandPublisher {
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
     private final CustomerUpsertKafkaProperties properties;
+    private final OutboxService outboxService;
 
     public UpsertCustomerCommandPublisher(
-        KafkaTemplate<String, Object> kafkaTemplate,
-        CustomerUpsertKafkaProperties properties
+        CustomerUpsertKafkaProperties properties,
+        OutboxService outboxService
     ) {
-        this.kafkaTemplate = kafkaTemplate;
         this.properties = properties;
+        this.outboxService = outboxService;
     }
 
     public void publish(UpsertCustomerCommand command) {
-        kafkaTemplate.send(properties.customerUpsert(), command.messageId(), command);
+        outboxService.enqueue(command.messageId(), properties.customerUpsert(), command.messageId(), command);
     }
 
     public void publish(ElasticsearchWriteCompletedCommand command) {
-        kafkaTemplate.send(properties.profileMerge(), command.messageId(), command);
+        outboxService.enqueue(command.messageId(), properties.profileMerge(), command.messageId(), command);
     }
 
     public void publish(ProfileMergeCompletedCommand command) {
-        kafkaTemplate.send(properties.segmentQualification(), command.messageId(), command);
+        outboxService.enqueue(command.messageId(), properties.segmentQualification(), command.messageId(), command);
+    }
+
+    public void publish(RuleEvaluationCommand command) {
+        outboxService.enqueue(command.messageId(), properties.ruleEvaluation(), command.messageId(), command);
     }
 }

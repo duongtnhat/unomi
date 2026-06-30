@@ -7,6 +7,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 import com.unomi.customer.upsert.UpsertCustomerInfoProcessor;
+import com.unomi.pipeline.ProcessedMessageService;
 
 @Service
 @ConditionalOnProperty(prefix = "unomi.kafka.consumers.write-es", name = "enabled", havingValue = "true", matchIfMissing = true)
@@ -16,13 +17,16 @@ public class CustomerUpsertWriteElasticsearchConsumer {
 
     private final UpsertCustomerInfoProcessor processor;
     private final UpsertCustomerCommandPublisher publisher;
+    private final ProcessedMessageService processedMessageService;
 
     public CustomerUpsertWriteElasticsearchConsumer(
         UpsertCustomerInfoProcessor processor,
-        UpsertCustomerCommandPublisher publisher
+        UpsertCustomerCommandPublisher publisher,
+        ProcessedMessageService processedMessageService
     ) {
         this.processor = processor;
         this.publisher = publisher;
+        this.processedMessageService = processedMessageService;
     }
 
     @KafkaListener(
@@ -31,9 +35,16 @@ public class CustomerUpsertWriteElasticsearchConsumer {
     )
     public void consume(UpsertCustomerCommand command) {
         LOGGER.info("Writing Elasticsearch for customer upsert command {}", command.messageId());
-        ElasticsearchWriteCompletedCommand completedCommand = processor.writeElasticsearch(command);
-        if (!command.skipHook()) {
-            publisher.publish(completedCommand);
-        }
+        processedMessageService.processOnce(
+            command.messageId(),
+            "WRITE_ES",
+            () -> {
+                ElasticsearchWriteCompletedCommand completedCommand = processor.writeElasticsearch(command);
+                if (!command.skipHook()) {
+                    publisher.publish(completedCommand);
+                }
+                return completedCommand;
+            }
+        );
     }
 }

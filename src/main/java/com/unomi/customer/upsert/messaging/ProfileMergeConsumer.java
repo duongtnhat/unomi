@@ -7,6 +7,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 import com.unomi.customer.upsert.UpsertCustomerInfoProcessor;
+import com.unomi.pipeline.ProcessedMessageService;
 
 @Service
 @ConditionalOnProperty(prefix = "unomi.kafka.consumers.merge", name = "enabled", havingValue = "true", matchIfMissing = true)
@@ -16,13 +17,16 @@ public class ProfileMergeConsumer {
 
     private final UpsertCustomerInfoProcessor processor;
     private final UpsertCustomerCommandPublisher publisher;
+    private final ProcessedMessageService processedMessageService;
 
     public ProfileMergeConsumer(
         UpsertCustomerInfoProcessor processor,
-        UpsertCustomerCommandPublisher publisher
+        UpsertCustomerCommandPublisher publisher,
+        ProcessedMessageService processedMessageService
     ) {
         this.processor = processor;
         this.publisher = publisher;
+        this.processedMessageService = processedMessageService;
     }
 
     @KafkaListener(
@@ -31,6 +35,14 @@ public class ProfileMergeConsumer {
     )
     public void consume(ElasticsearchWriteCompletedCommand command) {
         LOGGER.info("Merging profile for customer upsert command {}", command.messageId());
-        publisher.publish(processor.mergeProfile(command));
+        processedMessageService.processOnce(
+            command.messageId(),
+            "MERGE_PROFILE",
+            () -> {
+                ProfileMergeCompletedCommand completedCommand = processor.mergeProfile(command);
+                publisher.publish(completedCommand);
+                return completedCommand;
+            }
+        );
     }
 }

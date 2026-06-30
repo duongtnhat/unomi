@@ -22,6 +22,10 @@ public record CustomerProfileResponse(
     List<String> segmentIds,
     @Schema(description = "Segment keys this profile belongs to.")
     List<String> segmentKeys,
+    @Schema(description = "Rule-driven tags attached to this profile.")
+    List<String> tags,
+    @Schema(description = "Rule-driven scores attached to this profile.")
+    Map<String, Object> scores,
     @Schema(description = "Creation timestamp in UTC.")
     Instant createdAt,
     @Schema(description = "Last update timestamp in UTC.")
@@ -36,6 +40,8 @@ public record CustomerProfileResponse(
             profile.getProperties(),
             profile.getSegmentIds(),
             profile.getSegmentKeys(),
+            profile.getTags(),
+            profile.getScores(),
             profile.getCreatedAt(),
             profile.getUpdatedAt()
         );

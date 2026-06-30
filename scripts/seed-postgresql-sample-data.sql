@@ -47,7 +47,8 @@ VALUES
     ('de011fc7-6b88-4a8a-97b2-d5fa036ed3bd', 'lastSeenAt', 'Last Seen At', 'DATETIME', null, 'NEWEST_VALUE', false, now(), now()),
     ('8ef4ec2f-4385-449a-8851-f689733dba27', 'interestTags', 'Interest Tags', 'LIST_OF_TEXT', null, 'UNION', false, now(), now()),
     ('db5c68a7-5897-4946-a187-32e3083c3a19', 'preferredCategories', 'Preferred Categories', 'LIST_OF_TEXT', null, 'UNION', false, now(), now()),
-    ('c7801379-8831-4e2f-a51f-9f391c2cbdf7', 'scoreHistory', 'Score History', 'LIST_OF_NUMBER', null, 'UNION', false, now(), now())
+    ('c7801379-8831-4e2f-a51f-9f391c2cbdf7', 'scoreHistory', 'Score History', 'LIST_OF_NUMBER', null, 'UNION', false, now(), now()),
+    ('1b7878a7-8c5e-4711-a518-65813dbd46c7', 'loyaltyTier', 'Loyalty Tier', 'TEXT', null, 'NEWEST_VALUE', false, now(), now())
 ON CONFLICT (attribute_key) DO UPDATE
 SET
     name = EXCLUDED.name,
@@ -285,6 +286,229 @@ SET
     active = EXCLUDED.active,
     updated_at = now();
 
+INSERT INTO scoring_definitions (
+    id,
+    scoring_key,
+    name,
+    type,
+    start_value,
+    min_value,
+    max_value,
+    only_increase,
+    only_decrease,
+    active,
+    created_at,
+    updated_at
+)
+VALUES
+    (
+        '9a66ed12-674e-4ce9-999f-81712fe72e52',
+        'engagement',
+        'Engagement',
+        'NUMBER',
+        0,
+        0,
+        100,
+        false,
+        false,
+        true,
+        now(),
+        now()
+    ),
+    (
+        'd9502ef0-dfc0-4313-a978-0f5a6a8d5f6f',
+        'commercialValue',
+        'Commercial Value',
+        'NUMBER',
+        0,
+        0,
+        1000,
+        true,
+        false,
+        true,
+        now(),
+        now()
+    ),
+    (
+        'b9ae8ca7-a48b-45df-b09c-d5205b7354af',
+        'churnRisk',
+        'Churn Risk',
+        'NUMBER',
+        50,
+        0,
+        100,
+        false,
+        false,
+        true,
+        now(),
+        now()
+    )
+ON CONFLICT (scoring_key) DO UPDATE
+SET
+    name = EXCLUDED.name,
+    type = EXCLUDED.type,
+    start_value = EXCLUDED.start_value,
+    min_value = EXCLUDED.min_value,
+    max_value = EXCLUDED.max_value,
+    only_increase = EXCLUDED.only_increase,
+    only_decrease = EXCLUDED.only_decrease,
+    active = EXCLUDED.active,
+    updated_at = now();
+
+INSERT INTO rule_definitions (
+    id,
+    rule_key,
+    name,
+    description,
+    condition_id,
+    priority,
+    active,
+    outputs,
+    created_at,
+    updated_at
+)
+VALUES
+    (
+        'd432a039-b987-4f5e-bd5c-a39cf0f8d9d1',
+        'vipCustomerRule',
+        'VIP Customer Rule',
+        'Adds VIP profile outputs when lifetimeValue is high.',
+        'a123a11d-2f3c-4efc-a6d6-c3b03807e560',
+        100,
+        true,
+        '{
+            "attributes": {
+                "loyaltyTier": "gold"
+            },
+            "tags": ["vip", "high-value"],
+            "scores": {
+                "engagement": {
+                    "operation": "INCREASE",
+                    "value": 10
+                },
+                "commercialValue": {
+                    "operation": "INCREASE",
+                    "value": 25
+                }
+            },
+            "actions": [
+                {
+                    "key": "notifyCrmVip",
+                    "type": "CRM_NOTIFICATION",
+                    "payload": {
+                        "reason": "vipCustomer"
+                    }
+                }
+            ]
+        }'::jsonb,
+        now(),
+        now()
+    ),
+    (
+        '0f969639-8eb2-4b29-bd3c-b9c55cfaa9d1',
+        'highValuePurchaseRule',
+        'High Value Purchase Rule',
+        'Tags and scores customers when they send a high value purchase event.',
+        '988ae17f-8448-4ca5-92c6-c248622924be',
+        110,
+        true,
+        '{
+            "tags": ["high-value-purchase"],
+            "scores": {
+                "engagement": {
+                    "operation": "INCREASE",
+                    "value": 5
+                },
+                "commercialValue": {
+                    "operation": "INCREASE",
+                    "value": 15
+                }
+            },
+            "actions": [
+                {
+                    "key": "sendHighValuePurchaseWebhook",
+                    "type": "WEBHOOK",
+                    "payload": {
+                        "template": "highValuePurchase"
+                    }
+                }
+            ]
+        }'::jsonb,
+        now(),
+        now()
+    )
+ON CONFLICT (rule_key) DO UPDATE
+SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    condition_id = EXCLUDED.condition_id,
+    priority = EXCLUDED.priority,
+    active = EXCLUDED.active,
+    outputs = EXCLUDED.outputs,
+    updated_at = now();
+
+INSERT INTO action_type_definitions (
+    id,
+    action_key,
+    name,
+    description,
+    active,
+    params,
+    created_at,
+    updated_at
+)
+VALUES
+    (
+        'e67d6c10-35b4-49d9-b165-5867b4a2c8f4',
+        'WEBHOOK',
+        'Webhook',
+        'Sends an outbound webhook to an integration worker.',
+        true,
+        '[
+            {
+                "key": "template",
+                "name": "Template",
+                "type": "TEXT",
+                "required": true,
+                "description": "Template or routing key used by the webhook executor."
+            },
+            {
+                "key": "webhookUrl",
+                "name": "Webhook URL",
+                "type": "TEXT",
+                "required": false,
+                "description": "Optional destination URL when not resolved by template."
+            }
+        ]'::jsonb,
+        now(),
+        now()
+    ),
+    (
+        'fcce0899-47da-4205-a8f6-cbfa4e53a410',
+        'CRM_NOTIFICATION',
+        'CRM Notification',
+        'Creates a CRM notification action for downstream integration.',
+        true,
+        '[
+            {
+                "key": "reason",
+                "name": "Reason",
+                "type": "TEXT",
+                "required": true,
+                "description": "Reason code sent to the CRM connector."
+            }
+        ]'::jsonb,
+        now(),
+        now()
+    )
+ON CONFLICT (action_key) DO UPDATE
+SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    active = EXCLUDED.active,
+    params = EXCLUDED.params,
+    updated_at = now();
+
 INSERT INTO definitions (
     id,
     definition_key,
@@ -322,20 +546,6 @@ VALUES
             "purpose": "emailMarketing",
             "defaultGranted": false,
             "piiKeys": ["email", "firstName", "lastName"]
-        }'::jsonb,
-        now(),
-        now()
-    ),
-    (
-        '0726e8fe-d04c-42de-938b-17e8ec99841d',
-        'high-value-purchase-rule',
-        'RULE',
-        1,
-        'High Value Purchase Rule',
-        true,
-        '{
-            "conditionKey": "highValuePurchase",
-            "segmentKey": "highValuePurchasers"
         }'::jsonb,
         now(),
         now()

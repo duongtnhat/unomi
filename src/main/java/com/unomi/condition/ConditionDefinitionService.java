@@ -36,6 +36,7 @@ public class ConditionDefinitionService {
         ConditionDefinitionResponse response = ConditionDefinitionResponse.from(repository.save(entity));
         refreshCache();
         cacheService.evictSegments();
+        cacheService.evictRules();
         return response;
     }
 
@@ -64,6 +65,7 @@ public class ConditionDefinitionService {
         repository.deleteById(id);
         refreshCache();
         cacheService.evictSegments();
+        cacheService.evictRules();
     }
 
     private List<ConditionDefinitionResponse> getCachedConditions() {

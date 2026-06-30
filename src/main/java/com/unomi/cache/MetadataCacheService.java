@@ -10,8 +10,11 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.unomi.action.ActionTypeDefinitionResponse;
 import com.unomi.condition.ConditionDefinitionResponse;
 import com.unomi.definition.DefinitionResponse;
+import com.unomi.rule.RuleDefinitionResponse;
+import com.unomi.scoring.ScoringDefinitionResponse;
 import com.unomi.segment.SegmentDefinitionResponse;
 
 @Service
@@ -24,6 +27,9 @@ public class MetadataCacheService {
     private static final String DEFINITIONS_KEY = "unomi:metadata:definitions";
     private static final String CONDITIONS_KEY = "unomi:metadata:conditions";
     private static final String SEGMENTS_KEY = "unomi:metadata:segments";
+    private static final String RULES_KEY = "unomi:metadata:rules";
+    private static final String SCORINGS_KEY = "unomi:metadata:scorings";
+    private static final String ACTION_TYPES_KEY = "unomi:metadata:action-types";
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -96,6 +102,45 @@ public class MetadataCacheService {
 
     public void evictSegments() {
         delete(SEGMENTS_KEY);
+    }
+
+    public void putRules(List<RuleDefinitionResponse> rules) {
+        put(RULES_KEY, rules);
+    }
+
+    public Optional<List<RuleDefinitionResponse>> getRules() {
+        return get(RULES_KEY, new TypeReference<>() {
+        });
+    }
+
+    public void evictRules() {
+        delete(RULES_KEY);
+    }
+
+    public void putScorings(List<ScoringDefinitionResponse> scorings) {
+        put(SCORINGS_KEY, scorings);
+    }
+
+    public Optional<List<ScoringDefinitionResponse>> getScorings() {
+        return get(SCORINGS_KEY, new TypeReference<>() {
+        });
+    }
+
+    public void evictScorings() {
+        delete(SCORINGS_KEY);
+    }
+
+    public void putActionTypes(List<ActionTypeDefinitionResponse> actionTypes) {
+        put(ACTION_TYPES_KEY, actionTypes);
+    }
+
+    public Optional<List<ActionTypeDefinitionResponse>> getActionTypes() {
+        return get(ACTION_TYPES_KEY, new TypeReference<>() {
+        });
+    }
+
+    public void evictActionTypes() {
+        delete(ACTION_TYPES_KEY);
     }
 
     private void put(String key, Object value) {
