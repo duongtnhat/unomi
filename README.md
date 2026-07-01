@@ -34,6 +34,8 @@ The deployment compose file runs the API process separately from every Kafka con
 
 See [Data Flow](docs/data-flow.md) for the current end-to-end pipeline and action channel registry.
 
+See [Condition Building Guide](docs/condition-building-guide.md) for condition tree syntax and profile search by condition.
+
 ## Run locally
 
 Start the infrastructure:

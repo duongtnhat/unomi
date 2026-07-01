@@ -71,4 +71,26 @@ public class CustomerProfileController {
     ) {
         return service.get(id);
     }
+
+    @PostMapping("/search")
+    @Operation(
+        summary = "Search profiles by condition",
+        description = "Evaluates a profile condition tree against customer profiles and returns a paged list of matched profiles."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Profiles returned"),
+        @ApiResponse(responseCode = "400", description = "Invalid request body",
+            content = @Content(schema = @Schema(implementation = ApiError.class))),
+        @ApiResponse(responseCode = "401", description = "Missing or invalid API key",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    })
+    public CustomerProfileSearchResponse search(
+        @Valid @RequestBody CustomerProfileConditionSearchRequest request,
+        @Parameter(description = "Zero-based page index.", example = "0")
+        @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+        @Parameter(description = "Page size. Maximum value is 200.", example = "20")
+        @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") int size
+    ) {
+        return service.search(request, page, size);
+    }
 }
