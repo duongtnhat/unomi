@@ -1,6 +1,16 @@
 spring:
   application:
-    name: unomi
+    name: ${SPRING_APPLICATION_NAME:unomi}
+  boot:
+    admin:
+      client:
+        enabled: ${SPRING_BOOT_ADMIN_CLIENT_ENABLED:false}
+        url: ${SPRING_BOOT_ADMIN_CLIENT_URL:http://localhost:9090}
+        instance:
+          name: ${SPRING_BOOT_ADMIN_CLIENT_INSTANCE_NAME:${spring.application.name}}
+          service-url: ${SPRING_BOOT_ADMIN_CLIENT_INSTANCE_SERVICE_URL:http://localhost:${server.port}}
+          management-url: ${SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL:http://localhost:${server.port}/actuator}
+          health-url: ${SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL:http://localhost:${server.port}/actuator/health}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/unomi}
     username: ${SPRING_DATASOURCE_USERNAME:unomi}
@@ -34,15 +44,19 @@ spring:
         format_sql: true
 
 management:
+  info:
+    env:
+      enabled: true
   health:
     elasticsearch:
       enabled: false
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info,metrics,loggers,env,threaddump}
   endpoint:
     health:
+      show-details: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:always}
       probes:
         enabled: true
 

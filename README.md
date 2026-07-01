@@ -30,6 +30,8 @@ For local development, one app process runs all roles. For separate API nodes, s
 
 Kafka publishing uses a PostgreSQL outbox. The API records accepted commands in `inbox_events` and enqueues Kafka messages in `outbox_events`; a scheduled outbox publisher sends them to Kafka. Each worker records completion in `processed_messages` by `messageId` and stage, so retries do not re-run the same stage.
 
+The deployment compose file runs the API process separately from every Kafka consumer role and adds Spring Boot Admin at http://localhost:9090 for actuator-based monitoring.
+
 See [Data Flow](docs/data-flow.md) for the current end-to-end pipeline and action channel registry.
 
 ## Run locally

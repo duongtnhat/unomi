@@ -1,39 +1,185 @@
+x-unomi-base-env: &unomi-base-env
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/unomi
+  SPRING_DATASOURCE_USERNAME: unomi
+  SPRING_DATASOURCE_PASSWORD: unomi
+  SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+  SPRING_DATA_REDIS_HOST: redis
+  SPRING_DATA_REDIS_PORT: 6379
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  SPRING_BOOT_ADMIN_CLIENT_ENABLED: "true"
+  SPRING_BOOT_ADMIN_CLIENT_URL: http://spring-boot-admin:9090
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,loggers,env,threaddump
+  UNOMI_KAFKA_WEBHOOK_PROCESSING_TOPIC: action-processing-webhook
+  UNOMI_KAFKA_EMAIL_PROCESSING_TOPIC: action-processing-email
+
+x-unomi-consumers-off: &unomi-consumers-off
+  UNOMI_WRITE_ES_CONSUMER_ENABLED: "false"
+  UNOMI_MERGE_CONSUMER_ENABLED: "false"
+  UNOMI_SEGMENT_CONSUMER_ENABLED: "false"
+  UNOMI_RULE_CONSUMER_ENABLED: "false"
+  UNOMI_ACTION_CONSUMER_ENABLED: "false"
+  UNOMI_WEBHOOK_CONSUMER_ENABLED: "false"
+  UNOMI_EMAIL_CONSUMER_ENABLED: "false"
+
+x-unomi-service: &unomi-service
+  image: unomi-modern:latest
+  depends_on:
+    postgres:
+      condition: service_healthy
+    elasticsearch:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    kafka:
+      condition: service_healthy
+    spring-boot-admin:
+      condition: service_healthy
+  restart: unless-stopped
+
+x-unomi-worker: &unomi-worker
+  <<: *unomi-service
+  depends_on:
+    api:
+      condition: service_healthy
+    spring-boot-admin:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/actuator/health || exit 1"]
+    interval: 10s
+    timeout: 5s
+    retries: 12
+    start_period: 30s
+
 services:
-  app:
+  spring-boot-admin:
+    build:
+      context: ..
+      dockerfile: deployment/spring-boot-admin/Dockerfile
+    image: unomi-spring-boot-admin:latest
+    environment:
+      SERVER_PORT: 9090
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9090/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  api:
     build:
       context: ..
       dockerfile: deployment/Dockerfile
-    image: unomi-modern:latest
+    <<: *unomi-service
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/unomi
-      SPRING_DATASOURCE_USERNAME: unomi
-      SPRING_DATASOURCE_PASSWORD: unomi
-      SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      <<: [*unomi-base-env, *unomi-consumers-off]
+      SPRING_APPLICATION_NAME: unomi-api
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_NAME: unomi-api
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_SERVICE_URL: http://api:8080
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL: http://api:8080/actuator
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL: http://api:8080/actuator/health
       UNOMI_OUTBOX_PUBLISHER_ENABLED: "true"
-      UNOMI_WRITE_ES_CONSUMER_ENABLED: "true"
-      UNOMI_MERGE_CONSUMER_ENABLED: "true"
-      UNOMI_SEGMENT_CONSUMER_ENABLED: "true"
-      UNOMI_RULE_CONSUMER_ENABLED: "true"
-      UNOMI_ACTION_CONSUMER_ENABLED: "true"
-      UNOMI_WEBHOOK_CONSUMER_ENABLED: "true"
-      UNOMI_EMAIL_CONSUMER_ENABLED: "true"
-      UNOMI_KAFKA_WEBHOOK_PROCESSING_TOPIC: action-processing-webhook
-      UNOMI_KAFKA_EMAIL_PROCESSING_TOPIC: action-processing-email
     ports:
       - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  worker-write-es:
+    <<: *unomi-worker
+    environment:
+      <<: [*unomi-base-env, *unomi-consumers-off]
+      SPRING_APPLICATION_NAME: unomi-worker-write-es
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_NAME: unomi-worker-write-es
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_SERVICE_URL: http://worker-write-es:8080
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL: http://worker-write-es:8080/actuator
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL: http://worker-write-es:8080/actuator/health
+      SPRING_FLYWAY_ENABLED: "false"
+      UNOMI_OUTBOX_PUBLISHER_ENABLED: "false"
+      UNOMI_WRITE_ES_CONSUMER_ENABLED: "true"
+
+  worker-merge:
+    <<: *unomi-worker
+    environment:
+      <<: [*unomi-base-env, *unomi-consumers-off]
+      SPRING_APPLICATION_NAME: unomi-worker-merge
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_NAME: unomi-worker-merge
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_SERVICE_URL: http://worker-merge:8080
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL: http://worker-merge:8080/actuator
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL: http://worker-merge:8080/actuator/health
+      SPRING_FLYWAY_ENABLED: "false"
+      UNOMI_OUTBOX_PUBLISHER_ENABLED: "false"
+      UNOMI_MERGE_CONSUMER_ENABLED: "true"
+
+  worker-segment:
+    <<: *unomi-worker
+    environment:
+      <<: [*unomi-base-env, *unomi-consumers-off]
+      SPRING_APPLICATION_NAME: unomi-worker-segment
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_NAME: unomi-worker-segment
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_SERVICE_URL: http://worker-segment:8080
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL: http://worker-segment:8080/actuator
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL: http://worker-segment:8080/actuator/health
+      SPRING_FLYWAY_ENABLED: "false"
+      UNOMI_OUTBOX_PUBLISHER_ENABLED: "false"
+      UNOMI_SEGMENT_CONSUMER_ENABLED: "true"
+
+  worker-rule:
+    <<: *unomi-worker
+    environment:
+      <<: [*unomi-base-env, *unomi-consumers-off]
+      SPRING_APPLICATION_NAME: unomi-worker-rule
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_NAME: unomi-worker-rule
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_SERVICE_URL: http://worker-rule:8080
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL: http://worker-rule:8080/actuator
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL: http://worker-rule:8080/actuator/health
+      SPRING_FLYWAY_ENABLED: "false"
+      UNOMI_OUTBOX_PUBLISHER_ENABLED: "false"
+      UNOMI_RULE_CONSUMER_ENABLED: "true"
+
+  worker-action:
+    <<: *unomi-worker
+    environment:
+      <<: [*unomi-base-env, *unomi-consumers-off]
+      SPRING_APPLICATION_NAME: unomi-worker-action
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_NAME: unomi-worker-action
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_SERVICE_URL: http://worker-action:8080
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL: http://worker-action:8080/actuator
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL: http://worker-action:8080/actuator/health
+      SPRING_FLYWAY_ENABLED: "false"
+      UNOMI_OUTBOX_PUBLISHER_ENABLED: "false"
+      UNOMI_ACTION_CONSUMER_ENABLED: "true"
+
+  worker-webhook:
+    <<: *unomi-worker
+    environment:
+      <<: [*unomi-base-env, *unomi-consumers-off]
+      SPRING_APPLICATION_NAME: unomi-worker-webhook
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_NAME: unomi-worker-webhook
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_SERVICE_URL: http://worker-webhook:8080
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL: http://worker-webhook:8080/actuator
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL: http://worker-webhook:8080/actuator/health
+      SPRING_FLYWAY_ENABLED: "false"
+      UNOMI_OUTBOX_PUBLISHER_ENABLED: "false"
+      UNOMI_WEBHOOK_CONSUMER_ENABLED: "true"
+
+  worker-email:
+    <<: *unomi-worker
+    environment:
+      <<: [*unomi-base-env, *unomi-consumers-off]
+      SPRING_APPLICATION_NAME: unomi-worker-email
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_NAME: unomi-worker-email
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_SERVICE_URL: http://worker-email:8080
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_MANAGEMENT_URL: http://worker-email:8080/actuator
+      SPRING_BOOT_ADMIN_CLIENT_INSTANCE_HEALTH_URL: http://worker-email:8080/actuator/health
+      SPRING_FLYWAY_ENABLED: "false"
+      UNOMI_OUTBOX_PUBLISHER_ENABLED: "false"
+      UNOMI_EMAIL_CONSUMER_ENABLED: "true"
 
   postgres:
     image: postgres:16-alpine
