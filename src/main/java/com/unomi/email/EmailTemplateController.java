@@ -37,7 +37,7 @@ public class EmailTemplateController {
     @PostMapping
     @Operation(
         summary = "Create an email template",
-        description = "Creates an email template. Recipient, subject, and body use Mustache syntax rendered from action payload context."
+        description = "Creates an email template. Subject and body use Mustache syntax rendered from action payload and profile context. The recipient is resolved from payload.toAddress first, then from the customer profile email."
     )
     public ResponseEntity<EmailTemplateResponse> create(@Valid @RequestBody EmailTemplateRequest request) {
         EmailTemplateResponse response = service.create(request);

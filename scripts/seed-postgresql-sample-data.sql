@@ -525,6 +525,13 @@ VALUES
                 "type": "TEXT",
                 "required": false,
                 "description": "Optional email subject override."
+            },
+            {
+                "key": "toAddress",
+                "name": "To Address",
+                "type": "TEXT",
+                "required": false,
+                "description": "Optional recipient email. If omitted, the email worker falls back to the customer profile email."
             }
         ]'::jsonb,
         now(),
@@ -687,7 +694,6 @@ INSERT INTO email_templates (
     template_key,
     name,
     smtp_config_id,
-    to_address,
     subject,
     body,
     content_type,
@@ -701,7 +707,6 @@ VALUES
         'welcomeEmail',
         'Welcome Email',
         'c5848424-a9bc-42fc-9f8d-bc5b845b8926',
-        '{{payload.email}}',
         'Welcome {{payload.firstName}}',
         '<p>Hello {{payload.firstName}}, welcome to Unomi Modern.</p>',
         'text/html; charset=UTF-8',
@@ -713,7 +718,6 @@ ON CONFLICT (template_key) DO UPDATE
 SET
     name = EXCLUDED.name,
     smtp_config_id = EXCLUDED.smtp_config_id,
-    to_address = EXCLUDED.to_address,
     subject = EXCLUDED.subject,
     body = EXCLUDED.body,
     content_type = EXCLUDED.content_type,

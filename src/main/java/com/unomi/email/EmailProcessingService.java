@@ -10,9 +10,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import com.samskivert.mustache.Mustache;
 import com.unomi.action.messaging.ActionExecutionCommand;
+import com.unomi.customer.profile.CustomerProfileDocument;
+import com.unomi.customer.profile.CustomerProfileRepository;
 
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
@@ -24,13 +27,16 @@ public class EmailProcessingService {
 
     private final EmailTemplateRepository templateRepository;
     private final EmailCallRepository callRepository;
+    private final CustomerProfileRepository profileRepository;
 
     public EmailProcessingService(
         EmailTemplateRepository templateRepository,
-        EmailCallRepository callRepository
+        EmailCallRepository callRepository,
+        CustomerProfileRepository profileRepository
     ) {
         this.templateRepository = templateRepository;
         this.callRepository = callRepository;
+        this.profileRepository = profileRepository;
     }
 
     public EmailCallEntity process(ActionExecutionCommand command) {
@@ -49,8 +55,9 @@ public class EmailProcessingService {
         }
 
         EmailSmtpConfigEntity smtpConfig = template.getSmtpConfig();
-        Map<String, Object> context = context(command);
-        String toAddress = render(template.getToAddress(), context);
+        CustomerProfileDocument profile = profileRepository.findById(command.profileId()).orElse(null);
+        String toAddress = recipientEmail(command, profile);
+        Map<String, Object> context = context(command, profile, toAddress);
         String subject = render(template.getSubject(), context);
         String body = render(template.getBody(), context);
         String fromAddress = fromAddress(smtpConfig);
@@ -69,6 +76,20 @@ public class EmailProcessingService {
         call.setSubject(subject);
         call.setBody(body);
         call = callRepository.save(call);
+
+        if (!StringUtils.hasText(toAddress)) {
+            call.setStatus("FAILED");
+            call.setErrorMessage("Email recipient not found in payload.toAddress or profile email");
+            call.setCompletedAt(Instant.now());
+            LOGGER.warn(
+                "Email send skipped because payload and profile have no email actionEventId={} trackingId={} profileId={} templateKey={}",
+                command.actionEventId(),
+                trackingId(command),
+                command.profileId(),
+                template.getKey()
+            );
+            return callRepository.save(call);
+        }
 
         try {
             send(smtpConfig, fromAddress, toAddress, subject, body, template.getContentType());
@@ -151,7 +172,7 @@ public class EmailProcessingService {
             .execute(context);
     }
 
-    private Map<String, Object> context(ActionExecutionCommand command) {
+    private Map<String, Object> context(ActionExecutionCommand command, CustomerProfileDocument profile, String toAddress) {
         Map<String, Object> context = new LinkedHashMap<>();
         if (command.payload() != null) {
             context.putAll(command.payload());
@@ -162,9 +183,52 @@ public class EmailProcessingService {
         context.put("messageId", command.messageId());
         context.put("requestedAt", command.requestedAt());
         context.put("profileId", command.profileId());
+        context.put("toAddress", toAddress);
+        context.put("profileEmail", profileEmail(profile));
+        context.put("profile", profileContext(profile));
         context.put("ruleKey", command.ruleKey());
         context.put("actionKey", command.actionKey());
         context.put("actionType", command.actionType());
+        return context;
+    }
+
+    private String profileEmail(CustomerProfileDocument profile) {
+        if (profile == null) {
+            return null;
+        }
+        if (StringUtils.hasText(profile.getEmail())) {
+            return profile.getEmail();
+        }
+        Object propertyEmail = profile.getProperties() == null ? null : profile.getProperties().get("email");
+        if (propertyEmail instanceof String text && StringUtils.hasText(text)) {
+            return text;
+        }
+        Object identifierEmail = profile.getIdentifiers() == null ? null : profile.getIdentifiers().get("email");
+        if (identifierEmail instanceof String text && StringUtils.hasText(text)) {
+            return text;
+        }
+        return null;
+    }
+
+    private String recipientEmail(ActionExecutionCommand command, CustomerProfileDocument profile) {
+        Object payloadToAddress = command.payload() == null ? null : command.payload().get("toAddress");
+        if (payloadToAddress instanceof String text && StringUtils.hasText(text)) {
+            return text;
+        }
+        return profileEmail(profile);
+    }
+
+    private Map<String, Object> profileContext(CustomerProfileDocument profile) {
+        if (profile == null) {
+            return Map.of();
+        }
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("id", profile.getId());
+        context.put("profileKey", profile.getProfileKey());
+        context.put("email", profile.getEmail());
+        context.put("phoneNumber", profile.getPhoneNumber());
+        context.put("identifiers", profile.getIdentifiers() == null ? Map.of() : profile.getIdentifiers());
+        context.put("properties", profile.getProperties() == null ? Map.of() : profile.getProperties());
         return context;
     }
 

@@ -14,8 +14,6 @@ public record EmailTemplateRequest(
     @NotBlank String name,
     @Schema(description = "SMTP config ID used to send this template.")
     @NotNull UUID smtpConfigId,
-    @Schema(description = "Mustache recipient template.", example = "{{payload.email}}")
-    @NotBlank String toAddress,
     @Schema(description = "Mustache subject template.", example = "Welcome {{payload.firstName}}")
     @NotBlank String subject,
     @Schema(description = "Mustache body template.")

@@ -147,10 +147,13 @@ The action worker is a dispatcher only. It does not execute webhook, email, web 
 2. The worker reads `payload.template` from the action command.
 3. The worker loads an active `email_templates` row by that template key.
 4. The template references an `email_smtp_configs` row with SMTP host, port, credentials, and sender address.
-5. The worker renders recipient, subject, and body with Mustache syntax. The render context is the same action context used by webhook processing.
-6. The worker sends the email through the configured SMTP server.
-7. Every attempt is stored in `email_calls`, including `trackingId`, `profileId`, recipient, subject, body, and error message when the send fails.
-8. The worker records the action event ID as processed for stage `EMAIL_PROCESSING`.
+5. The worker resolves the recipient email from `payload.toAddress` first.
+6. If `payload.toAddress` is missing, the worker falls back to the customer profile using `profile.email`, `profile.properties.email`, or `profile.identifiers.email`.
+7. If neither source has an email, the worker writes a failed `email_calls` row with the error `Email recipient not found in payload.toAddress or profile email`.
+8. The worker renders subject and body with Mustache syntax. The render context is the same action context used by webhook processing, plus `toAddress`, `profileEmail`, and `profile`.
+9. The worker sends the email through the configured SMTP server.
+10. Every attempt is stored in `email_calls`, including `trackingId`, `profileId`, recipient, subject, body, and error message when the send fails.
+11. The worker records the action event ID as processed for stage `EMAIL_PROCESSING`.
 
 ## Idempotency And Durability
 

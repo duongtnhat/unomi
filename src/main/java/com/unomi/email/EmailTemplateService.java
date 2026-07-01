@@ -93,7 +93,6 @@ public class EmailTemplateService {
         entity.setName(request.name());
         entity.setSmtpConfig(smtpConfigRepository.findById(request.smtpConfigId())
             .orElseThrow(() -> new NotFoundException("SMTP config not found: " + request.smtpConfigId())));
-        entity.setToAddress(request.toAddress());
         entity.setSubject(request.subject());
         entity.setBody(request.body());
         entity.setContentType(request.contentType() == null || request.contentType().isBlank()

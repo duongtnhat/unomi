@@ -57,7 +57,7 @@ public class EmailCallEntity {
     @Column(name = "from_address", nullable = false, length = 320)
     private String fromAddress;
 
-    @Column(name = "to_address", nullable = false, columnDefinition = "text")
+    @Column(name = "to_address", columnDefinition = "text")
     private String toAddress;
 
     @Column(nullable = false, columnDefinition = "text")

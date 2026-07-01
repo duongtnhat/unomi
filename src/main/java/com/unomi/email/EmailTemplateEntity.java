@@ -40,9 +40,6 @@ public class EmailTemplateEntity {
     @JoinColumn(name = "smtp_config_id", nullable = false)
     private EmailSmtpConfigEntity smtpConfig;
 
-    @Column(name = "to_address", nullable = false, columnDefinition = "text")
-    private String toAddress;
-
     @Column(nullable = false, columnDefinition = "text")
     private String subject;
 
